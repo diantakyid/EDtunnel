@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pollinations Image Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 0; }
+    .container { width: 90%; max-width: 1800px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px #0001; }
+    h1 { text-align: center; }
+    label { display: block; margin-top: 16px; }
+    input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; border-radius: 4px; border: 1px solid #ccc; }
+    button { margin-top: 20px; width: 100%; padding: 12px; background: #4f8cff; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+    button:disabled { background: #aaa; }
+    .form-row { display: flex; gap: 16px; align-items: end; }
+    .form-row > div { flex: 1; }
+    .foreground-controls { 
+      background: #f0f4ff; 
+      border: 2px solid #4f8cff; 
+      border-radius: 8px; 
+      padding: 16px; 
+      margin: 16px 0;
+      display: none;
+    }
+    .foreground-controls h3 { 
+      margin: 0 0 12px 0; 
+      color: #4f8cff; 
+      font-size: 16px;
+    }
+    .image-preview {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      justify-items: center;
+      align-items: start;
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+      padding-bottom: 32px;
+    }
+    .image-preview .canvas-wrapper {
+      width: 100%;
+      max-width: 270px;
+      background: #f6f8fa;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px #0001;
+      padding: 18px 10px 18px 10px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    body.dark .image-preview .canvas-wrapper {
+      background: #23272a;
+      box-shadow: 0 2px 12px #0005;
+    }
+    .image-preview canvas {
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 8px;
+      background: #eee;
+      box-shadow: 0 1px 4px #0002;
+      display: block;
+    }
+    img { max-width: 100%; border-radius: 8px; }
+    .loading { color: #4f8cff; margin-top: 16px; text-align: center; }
+    
+    /* Dark mode styles */
+    body.dark {
+      background: #181a1b;
+      color: #e0e0e0;
+    }
+    body.dark .container {
+      background: #23272a;
+      box-shadow: 0 2px 8px #0008;
+    }
+    body.dark input, body.dark select, body.dark textarea {
+      background: #23272a;
+      color: #e0e0e0;
+      border: 1px solid #444;
+    }
+    body.dark button {
+      background: #1976d2;
+      color: #fff;
+    }
+    body.dark #dropZone {
+      background: #23272a;
+      border-color: #1976d2;
+    }
+    body.dark .foreground-controls {
+      background: #1a1f2e;
+      border-color: #1976d2;
+    }
+    body.dark .foreground-controls h3 {
+      color: #90caf9;
+    }
+    body.dark .image-preview {
+      background: transparent;
+    }
+    body.dark .loading {
+      color: #90caf9;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #4f8cff;
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px auto;
+    }
+    body.dark .spinner {
+      border: 4px solid #90caf9;
+      border-top: 4px solid #23272a;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Tooltip styles */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 120px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px 0;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -60px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pollinations Image Generator</h1>
+    <!-- Dark Mode Switch -->
+    <div style="text-align:right; margin-bottom:12px;">
+      <label style="cursor:pointer;user-select:none;">
+        <input type="checkbox" id="darkModeSwitch" style="vertical-align:middle; margin-right:6px;">
+        <span id="darkModeLabel">🌙 Dark Mode</span>
+      </label>
+    </div>
+    <form id="imageForm">
+      <label>
+        Prompt:
+        <textarea id="prompt" style="width:70%;height:200px;resize:vertical;" required>Wooden Flooring is a must.</textarea>
+      </label>
+      
+      <div class="form-row">
+        <div>
+          <label>
+            Canvas Width:
+            <input type="number" id="width" value="1024" min="256" max="2048" required>
+          </label>
+        </div>
+        <div>
+          <label>
+            Canvas Height:
+            <input type="number" id="height" value="1024" min="256" max="2048" required>
+          </label>
+        </div>
+        <div>
+          <label>
+            Seed:
+            <input type="number" id="seed" value="42" min="0">
+          </label>
+        </div>
+        <div>
+          <label>
+            Model:
+            <select id="model">
+              <option value="flux">flux</option>
+              <option value="sdxl">sdxl</option>
+              <option value="stable-diffusion">stable-diffusion</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Drag & Drop Upload Gambar -->
+      <div id="bgPreviewContainer" style="display:none; margin:16px 0; text-align:center;">
+        <img id="bgPreview" src="" alt="Preview Background" style="max-width:220px; max-height:180px; border-radius:8px; box-shadow:0 2px 8px #0002; margin-bottom:8px;">
+        <div style="color:#888; font-size:13px;">Preview Gambar Foreground</div>
+      </div>
+      <div id="dropZone" style="border:2px dashed #4f8cff; border-radius:8px; padding:24px; text-align:center; background:#f4f8ff; margin:16px 0; cursor:pointer;">
+        <span style="font-size:18px; color:#4f8cff;">📁 Drag & Drop gambar foreground di sini<br>atau klik untuk memilih file</span>
+        <input type="file" id="uploadBg" accept="image/*" style="display:none;">
+      </div>
+
+      <!-- Foreground Image Controls -->
+      <div class="foreground-controls" id="foregroundControls">
+        <h3>🎨 Pengaturan Gambar Foreground</h3>
+        <div class="form-row">
+          <div>
+            <label>
+              Lebar Foreground (%):
+              <input type="range" id="fgWidth" min="10" max="100" value="75" style="width:100%;">
+              <span id="fgWidthValue">75%</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              Tinggi Foreground (%):
+              <input type="range" id="fgHeight" min="10" max="100" value="75" style="width:100%;">
+              <span id="fgHeightValue">75%</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>
+              Posisi Horizontal (%):
+              <input type="range" id="fgPosX" min="0" max="100" value="50" style="width:100%;">
+              <span id="fgPosXValue">50%</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              Posisi Vertikal (%):
+              <input type="range" id="fgPosY" min="0" max="100" value="50" style="width:100%;">
+              <span id="fgPosYValue">50%</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>
+              Opacity (%):
+              <input type="range" id="fgOpacity" min="0" max="100" value="100" style="width:100%;">
+              <span id="fgOpacityValue">100%</span>
+            </label>
+          </div>
+          <div>
+            <label>
+              Blend Mode:
+              <select id="blendMode">
+                <option value="source-over">Normal</option>
+                <option value="multiply">Multiply</option>
+                <option value="screen">Screen</option>
+                <option value="overlay">Overlay</option>
+                <option value="soft-light">Soft Light</option>
+                <option value="hard-light">Hard Light</option>
+                <option value="color-dodge">Color Dodge</option>
+                <option value="color-burn">Color Burn</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+    </form>
+    
+    <div style="text-align:center; margin:24px 0;">
+      <button type="submit" form="imageForm">Generate Image</button>
+    </div>
+    
+    <div class="loading" id="loading" style="display:none;">
+      <div class="spinner"></div>
+      <span id="loadingText">Generating images...</span>
+    </div>
+    
+    <div id="progressContainer" style="text-align:center; margin:16px 0;"></div>
+    <div class="image-preview" id="imagePreview" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; justify-items: center; align-items: start;"></div>
+    
+    <div style="text-align:center; margin:32px 0;">
+      <button id="downloadAllBtn" style="display:none; background:#ff9800; color:#fff; font-weight:bold; border:none; border-radius:6px; padding:12px 24px; cursor:pointer;">Download Semua Gambar (ZIP)</button>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    const form = document.getElementById('imageForm');
+    const imagePreview = document.getElementById('imagePreview');
+    const loading = document.getElementById('loading');
+    const uploadBg = document.getElementById('uploadBg');
+    const bgPreview = document.getElementById('bgPreview');
+    const bgPreviewContainer = document.getElementById('bgPreviewContainer');
+    const progressContainer = document.getElementById('progressContainer');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const foregroundControls = document.getElementById('foregroundControls');
+
+    let bgImage = null;
+
+    // Foreground controls elements
+    const fgWidth = document.getElementById('fgWidth');
+    const fgHeight = document.getElementById('fgHeight');
+    const fgPosX = document.getElementById('fgPosX');
+    const fgPosY = document.getElementById('fgPosY');
+    const fgOpacity = document.getElementById('fgOpacity');
+    const blendMode = document.getElementById('blendMode');
+
+    // Update display values for sliders
+    fgWidth.oninput = () => document.getElementById('fgWidthValue').textContent = fgWidth.value + '%';
+    fgHeight.oninput = () => document.getElementById('fgHeightValue').textContent = fgHeight.value + '%';
+    fgPosX.oninput = () => document.getElementById('fgPosXValue').textContent = fgPosX.value + '%';
+    fgPosY.oninput = () => document.getElementById('fgPosYValue').textContent = fgPosY.value + '%';
+    fgOpacity.oninput = () => document.getElementById('fgOpacityValue').textContent = fgOpacity.value + '%';
+
+    // Helper: show progress bar
+    function showProgress(percent) {
+      progressContainer.innerHTML = `
+        <div style="width:60%;margin:0 auto;background:#eee;border-radius:8px;overflow:hidden;">
+          <div style="width:${percent}%;background:#4f8cff;height:18px;transition:width 0.3s;"></div>
+        </div>
+        <div style="font-weight:bold;color:#4f8cff;margin-top:4px;">${percent}%</div>
+      `;
+    }
+
+    // Helper: tooltip
+    function addTooltip(el, text) {
+      el.style.position = "relative";
+      const tip = document.createElement("span");
+      tip.textContent = text;
+      tip.style.position = "absolute";
+      tip.style.bottom = "120%";
+      tip.style.left = "50%";
+      tip.style.transform = "translateX(-50%)";
+      tip.style.background = "#ff1744";
+      tip.style.color = "#fff";
+      tip.style.padding = "6px 14px";
+      tip.style.borderRadius = "6px";
+      tip.style.fontSize = "13px";
+      tip.style.fontWeight = "bold";
+      tip.style.whiteSpace = "nowrap";
+      tip.style.boxShadow = "0 2px 8px #0003";
+      tip.style.opacity = "0";
+      tip.style.pointerEvents = "none";
+      tip.style.transition = "opacity 0.2s";
+      el.appendChild(tip);
+      el.onmouseenter = () => { tip.style.opacity = "1"; };
+      el.onmouseleave = () => { tip.style.opacity = "0"; };
+    }
+
+    // Download single canvas
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    // Download all canvases as zip
+    downloadAllBtn.onclick = async function() {
+      const zip = new JSZip();
+      const canvases = imagePreview.querySelectorAll('canvas');
+      for (let i = 0; i < canvases.length; i++) {
+        const dataUrl = canvases[i].toDataURL("image/png");
+        const base64 = dataUrl.split(',')[1];
+        zip.file(`image_${i+1}.png`, base64, {base64: true});
+      }
+      const blob = await zip.generateAsync({type:"blob"});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = "all_images.zip";
+      link.click();
+    };
+
+    form.onsubmit = function(e) {
+      e.preventDefault();
+      imagePreview.innerHTML = '';
+      progressContainer.innerHTML = '';
+      loading.style.display = 'block';
+      downloadAllBtn.style.display = 'none';
+
+      const prompt = encodeURIComponent(document.getElementById('prompt').value);
+      const width = parseInt(document.getElementById('width').value, 10);
+      const height = parseInt(document.getElementById('height').value, 10);
+      const seed = parseInt(document.getElementById('seed').value, 10) || 0;
+      const model = document.getElementById('model').value;
+
+      let imagesLoaded = 0;
+      let total = 6;
+
+      function updateProgress() {
+        const percent = Math.round((imagesLoaded / total) * 100);
+        showProgress(percent);
+      }
+
+      // Get foreground settings
+      const fgWidthPercent = parseInt(fgWidth.value) / 100;
+      const fgHeightPercent = parseInt(fgHeight.value) / 100;
+      const fgPosXPercent = parseInt(fgPosX.value) / 100;
+      const fgPosYPercent = parseInt(fgPosY.value) / 100;
+      const fgOpacityPercent = parseInt(fgOpacity.value) / 100;
+      const fgBlendMode = blendMode.value;
+
+      // Buat grid 3 kolom x 2 baris, simpan wrapper di array
+      const wrappers = [];
+      for (let i = 0; i < total; i++) {
+        const currentSeed = seed + i;
+        const url = `https://image.pollinations.ai/prompt/${prompt}?w=${width}&h=${height}&seed=${currentSeed}&model=${model}&nologo=true`;
+        const canvas = document.createElement('canvas');
+        
+        // Canvas - Ukuran 9:16, misal 450x800 agar proporsional
+        const canvasW = 450;
+        const canvasH = 800;
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        canvas.style.width = "100%";
+        canvas.style.height = "auto";
+        canvas.style.display = "block";
+        canvas.style.margin = "0 0 8px 0";
+        canvas.style.background = "#eee";
+        canvas.style.borderRadius = "8px";
+        canvas.style.boxShadow = "0 1px 4px #0002";
+        canvas.style.position = "relative";
+
+        // Download button
+        const dlBtn = document.createElement('button');
+        dlBtn.textContent = "⬇️ Download";
+        dlBtn.style.position = "absolute";
+        dlBtn.style.right = "12px";
+        dlBtn.style.top = "12px";
+        dlBtn.style.background = "#ff1744";
+        dlBtn.style.color = "#fff";
+        dlBtn.style.border = "none";
+        dlBtn.style.borderRadius = "6px";
+        dlBtn.style.padding = "6px 12px";
+        dlBtn.style.fontWeight = "bold";
+        dlBtn.style.cursor = "pointer";
+        dlBtn.style.zIndex = "2";
+        dlBtn.style.boxShadow = "0 2px 8px #0003";
+        dlBtn.style.fontSize = "14px";
+        dlBtn.style.opacity = "0.92";
+        addTooltip(dlBtn, "Download gambar ini");
+
+        // Wrapper for relative positioning
+        const wrapper = document.createElement('div');
+        wrapper.className = "canvas-wrapper";
+        wrapper.appendChild(canvas);
+        wrapper.appendChild(dlBtn);
+        wrappers.push(wrapper);
+
+        dlBtn.onclick = function(ev) {
+          ev.preventDefault();
+          downloadCanvas(canvas, `image_${i+1}.png`);
+        };
+
+        const ctx = canvas.getContext('2d');
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        img.onload = async function() {
+          let percent = 0;
+          showProgress(percent);
+          
+          // Draw background image first
+          const cropHeight = 0;
+          const cropSrcHeight = img.height - cropHeight;
+          ctx.drawImage(
+            img,
+            0, 0, img.width, cropSrcHeight,
+            0, 0, canvas.width, canvas.height
+          );
+          
+          // Progress animation
+          for (let p = 1; p <= 100; p += 10) {
+            await new Promise(res => setTimeout(res, 12));
+            percent = p;
+            showProgress(Math.min(99, Math.round((imagesLoaded / total) * 100 + percent/total)));
+          }
+          
+          // Draw foreground image with user settings
+          if (bgImage && bgImage.complete) {
+            // Calculate new dimensions based on user settings
+            const newW = canvas.width * fgWidthPercent;
+            const newH = canvas.height * fgHeightPercent;
+            
+            // Calculate position based on user settings
+            const offsetX = (canvas.width - newW) * fgPosXPercent;
+            const offsetY = (canvas.height - newH) * fgPosYPercent;
+            
+            // Save current context
+            ctx.save();
+            
+            // Apply opacity and blend mode
+            ctx.globalAlpha = fgOpacityPercent;
+            ctx.globalCompositeOperation = fgBlendMode;
+            
+            // Draw foreground image
+            ctx.drawImage(bgImage, offsetX, offsetY, newW, newH);
+            
+            // Restore context
+            ctx.restore();
+          }
+          
+          imagesLoaded++;
+          updateProgress();
+          if (imagesLoaded === total) {
+            loading.style.display = 'none';
+            showProgress(100);
+            downloadAllBtn.style.display = 'inline-block';
+          }
+        };
+        
+        img.onerror = function() {
+          ctx.font = "16px Arial";
+          ctx.fillStyle = "#888";
+          ctx.textAlign = "center";
+          ctx.fillText("Failed to load", canvas.width/2, canvas.height/2);
+          imagesLoaded++;
+          updateProgress();
+          if (imagesLoaded === total) {
+            loading.style.display = 'none';
+            showProgress(100);
+            downloadAllBtn.style.display = 'inline-block';
+          }
+        };
+        img.src = url;
+      }
+      
+      // Tampilkan grid 3x2
+      imagePreview.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+      grid.style.gap = '18px';
+      grid.style.justifyItems = 'center';
+      grid.style.alignItems = 'center';
+      for (let i = 0; i < wrappers.length; i++) {
+        grid.appendChild(wrappers[i]);
+      }
+      imagePreview.appendChild(grid);
+    };
+
+    const dropZone = document.getElementById('dropZone');
+    // Drag & Drop logic
+    dropZone.addEventListener('click', () => uploadBg.click());
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.style.background = "#e3f0ff";
+      dropZone.style.borderColor = "#1976d2";
+    });
+    dropZone.addEventListener('dragleave', e => {
+      e.preventDefault();
+      dropZone.style.background = "#f4f8ff";
+      dropZone.style.borderColor = "#4f8cff";
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.style.background = "#f4f8ff";
+      dropZone.style.borderColor = "#4f8cff";
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        uploadBg.files = e.dataTransfer.files;
+        const dt = new DataTransfer();
+        dt.items.add(e.dataTransfer.files[0]);
+        uploadBg.files = dt.files;
+        uploadBg.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    // Handle upload & preview
+    uploadBg.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        bgPreview.src = evt.target.result;
+        bgPreviewContainer.style.display = 'block';
+        foregroundControls.style.display = 'block'; // Show controls when image is uploaded
+        bgImage = new window.Image();
+        bgImage.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Dark mode switch
+    const darkModeSwitch = document.getElementById('darkModeSwitch');
+    const darkModeLabel = document.getElementById('darkModeLabel');
+    darkModeSwitch.addEventListener('change', function() {
+      if (this.checked) {
+        document.body.classList.add('dark');
+        darkModeLabel.textContent = '☀️ Light Mode';
+        localStorage.setItem('darkMode', '1');
+      } else {
+        document.body.classList.remove('dark');
+        darkModeLabel.textContent = '🌙 Dark Mode';
+        localStorage.setItem('darkMode', '0');
+      }
+    });
+    
+    // Load dark mode preference
+    if (localStorage.getItem('darkMode') === '1') {
+      darkModeSwitch.checked = true;
+      document.body.classList.add('dark');
+      darkModeLabel.textContent = '☀️ Light Mode';
+    }
+  </script>
+</body>
+</html>
